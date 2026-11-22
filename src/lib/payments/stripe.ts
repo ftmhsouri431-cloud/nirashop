@@ -27,7 +27,7 @@ export const stripePaymentProvider: PaymentProvider = {
     // Placeholder: real integration would call Stripe Checkout Sessions API.
     // Kept as an explicit plug-in point so swapping is a config change.
     throw new Error(
-      "Stripe adapter آماده اتصال است اما Session هنوز پیاده‌سازی نشده؛ ابتدا کلید را ست کنید و منطق Checkout Session را در این فایل کامل کنید.",
+      `Stripe adapter آماده اتصال است اما Session هنوز پیاده‌سازی نشده (سفارش ${input.orderId}).`,
     );
   },
   async verifyPayment(
