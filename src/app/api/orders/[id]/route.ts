@@ -14,8 +14,21 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   if (!order) {
     return NextResponse.json({ error: "یافت نشد" }, { status: 404 });
   }
-  // Public confirmation needs the order id; strip nothing sensitive beyond what's needed
-  return NextResponse.json({ order });
+
+  if (await requireAdmin()) {
+    return NextResponse.json({ order });
+  }
+
+  // Public confirmation receipt — no customer PII
+  return NextResponse.json({
+    order: {
+      id: order.id,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      total: order.total,
+      createdAt: order.createdAt,
+    },
+  });
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {

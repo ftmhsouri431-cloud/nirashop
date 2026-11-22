@@ -1,15 +1,15 @@
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  resolveLocalAdminPasswordFile,
+  resolveSigningSecret,
+} from "./runtime-secret";
 import { getSettings } from "./settings";
 
 const COOKIE = "nira_admin";
 
 function secret(): string {
-  return (
-    process.env.ADMIN_SESSION_SECRET?.trim() ||
-    process.env.ADMIN_PASSWORD?.trim() ||
-    "nira-local-session"
-  );
+  return resolveSigningSecret("ADMIN_SESSION_SECRET", "session-secret");
 }
 
 function sign(value: string): string {
@@ -44,14 +44,35 @@ export async function requireAdmin(): Promise<boolean> {
   return isAdminAuthenticated();
 }
 
-export async function checkPassword(password: string): Promise<boolean> {
+export async function resolveExpectedAdminPassword(): Promise<string | null> {
+  const fromEnv = process.env.ADMIN_PASSWORD?.trim();
+  if (fromEnv) return fromEnv;
+
   const settings = await getSettings();
-  const expected =
-    process.env.ADMIN_PASSWORD?.trim() || settings.adminPassword;
+  if (settings.adminPassword?.trim()) return settings.adminPassword.trim();
+
+  return resolveLocalAdminPasswordFile();
+}
+
+export async function checkPassword(password: string): Promise<boolean> {
+  const expected = await resolveExpectedAdminPassword();
+  if (!expected) return false;
   const a = Buffer.from(password);
   const b = Buffer.from(expected);
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
+}
+
+export function adminCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true as const,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+    secure:
+      process.env.NODE_ENV === "production" ||
+      process.env.COOKIE_SECURE === "true",
+  };
 }
 
 export { COOKIE as ADMIN_COOKIE };

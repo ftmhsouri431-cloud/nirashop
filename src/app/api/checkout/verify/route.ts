@@ -22,14 +22,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
   }
 
+  if (!paymentId || !order.paymentId || paymentId !== order.paymentId) {
+    return NextResponse.json(
+      { error: "شناسه پرداخت با سفارش هم‌خوانی ندارد" },
+      { status: 400 },
+    );
+  }
+
+  if (order.paymentStatus === "paid") {
+    return NextResponse.json({ ok: true, order, result: { success: true } });
+  }
+
   const provider = getPaymentProvider(order.paymentMethod);
+
+  // Only pass provider-needed params; never let clients invent mock success.
+  const safeParams: Record<string, string> = {
+    amount: String(order.total),
+  };
+  if (order.paymentMethod === "mock") {
+    if (returnParams.outcome) safeParams.outcome = String(returnParams.outcome);
+    if (returnParams.token) safeParams.token = String(returnParams.token);
+  } else {
+    for (const [key, value] of Object.entries(returnParams)) {
+      if (key === "amount") continue;
+      safeParams[key] = String(value);
+    }
+  }
+
   const result = await provider.verifyPayment({
-    paymentId: paymentId || order.paymentId || "",
+    paymentId,
     orderId,
-    returnParams: {
-      ...returnParams,
-      amount: String(order.total),
-    },
+    returnParams: safeParams,
   });
 
   if (result.success) {

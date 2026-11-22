@@ -1,12 +1,17 @@
 import { sql } from "./db";
-
-const DEFAULT_PASSWORD =
-  process.env.ADMIN_PASSWORD?.trim() || "nira1403";
+import { resolveLocalAdminPasswordFile } from "./runtime-secret";
 
 export const DEFAULT_SETTINGS = {
   shopName: "نیرا شاپ",
   tagline: "مینیمال لوکس برای کمد زنانه",
 };
+
+function bootstrapAdminPassword(): string | null {
+  const fromEnv = process.env.ADMIN_PASSWORD?.trim();
+  if (fromEnv) return fromEnv;
+  // Local/dev only — never a hardcoded shared password in source.
+  return resolveLocalAdminPasswordFile();
+}
 
 type SeedProduct = {
   id: string;
@@ -161,7 +166,8 @@ export async function ensureSeeded(): Promise<void> {
       await sql(
         `insert into products
           (id, name, description, price, compare_at_price, category, sizes, colors, images, stock, published)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true)`,
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true)
+         on conflict (id) do nothing`,
         [
           p.id,
           p.name,
@@ -191,10 +197,13 @@ export async function ensureSeeded(): Promise<void> {
       "tagline",
       DEFAULT_SETTINGS.tagline,
     ]);
-    await sql("insert into settings (key, value) values ($1, $2)", [
-      "admin_password",
-      DEFAULT_PASSWORD,
-    ]);
+    const adminPassword = bootstrapAdminPassword();
+    if (adminPassword) {
+      await sql("insert into settings (key, value) values ($1, $2)", [
+        "admin_password",
+        adminPassword,
+      ]);
+    }
   } else if (
     name[0].value === "آتلیه" ||
     name[0].value === "نیرا"

@@ -11,7 +11,7 @@ export async function getSettings(): Promise<ShopSettings> {
   return {
     shopName: map.shop_name || DEFAULT_SETTINGS.shopName,
     tagline: map.tagline || DEFAULT_SETTINGS.tagline,
-    adminPassword: map.admin_password || "nira1403",
+    adminPassword: map.admin_password || "",
   };
 }
 

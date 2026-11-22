@@ -16,13 +16,17 @@ function PayInner() {
   async function complete(status: "ok" | "fail") {
     setBusy(true);
     setError("");
+    const token =
+      status === "ok"
+        ? params.get("okToken") || ""
+        : params.get("failToken") || "";
     const res = await fetch("/api/checkout/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orderId,
         paymentId,
-        returnParams: { status, provider: "mock" },
+        returnParams: { outcome: status, token, provider: "mock" },
       }),
     });
     const data = await res.json();

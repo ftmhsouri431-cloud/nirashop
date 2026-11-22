@@ -5,6 +5,7 @@ import type {
   PaymentVerifyInput,
   PaymentVerifyResult,
 } from "./types";
+import { signMockPaymentToken, verifyMockPaymentToken } from "./mock-token";
 
 /** Sandbox gateway that proves checkout without a real PSP. */
 export const mockPaymentProvider: PaymentProvider = {
@@ -12,11 +13,14 @@ export const mockPaymentProvider: PaymentProvider = {
   label: "پرداخت آزمایشی",
   async createPayment(input: PaymentCreateInput): Promise<PaymentCreateResult> {
     const paymentId = `mock_${input.orderId}_${Date.now().toString(36)}`;
+    const okToken = signMockPaymentToken(input.orderId, paymentId, "ok");
+    const failToken = signMockPaymentToken(input.orderId, paymentId, "fail");
     const url = new URL(input.callbackUrl);
     url.searchParams.set("orderId", input.orderId);
     url.searchParams.set("paymentId", paymentId);
     url.searchParams.set("provider", "mock");
-    url.searchParams.set("status", "ok");
+    url.searchParams.set("okToken", okToken);
+    url.searchParams.set("failToken", failToken);
     return {
       paymentId,
       redirectUrl: `/checkout/pay?${url.searchParams.toString()}`,
@@ -26,8 +30,18 @@ export const mockPaymentProvider: PaymentProvider = {
   async verifyPayment(
     input: PaymentVerifyInput,
   ): Promise<PaymentVerifyResult> {
-    const status = input.returnParams?.status;
-    if (status === "ok" || status === "paid") {
+    const outcome = String(input.returnParams?.outcome || "");
+    const token = input.returnParams?.token;
+    if (
+      !verifyMockPaymentToken(input.orderId, input.paymentId, outcome, token)
+    ) {
+      return {
+        success: false,
+        paymentId: input.paymentId,
+        message: "توکن تأیید پرداخت نامعتبر است",
+      };
+    }
+    if (outcome === "ok") {
       return {
         success: true,
         paymentId: input.paymentId,
